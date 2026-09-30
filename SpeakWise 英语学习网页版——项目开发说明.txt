@@ -1,0 +1,300 @@
+SpeakWise 英语学习网页版——项目开发说明
+核查日期：2026-09-30
+线上地址：https://speakwise-wsicpu2u.manus.space/
+用户本地目录：H:\speakwise_web
+
+1. 核查范围与结论
+本次已完成：
+
+访问并检查线上首页的页面结构、可见功能和交互入口。
+下载线上构建产物并分析 JavaScript/CSS 中保留的源码定位信息、组件名、状态逻辑和接口线索。
+通过浏览器检查页面元素、录音按钮、课程筛选、词汇交互和统计模块。
+确认线上应用为 React + TypeScript 单页应用，使用构建后的 Vite 风格静态资源发布。
+
+当前限制：
+
+当前执行环境只有 Manus Sandbox，没有发现可访问用户电脑或 Windows 设备，因此无法直接读取 H:\speakwise_web 的源代码、package.json、Git 历史、环境变量和本地配置。
+以下“源码文件位置”是从线上构建产物的 data-loc 调试信息中反推得到的真实源文件线索；需要拿到本地目录后，再核对文件内容、依赖版本和未被构建产物暴露的配置。
+线上构建产物可以说明当前已发布版本的行为，但不能等同于本地工作区最新代码。
+
+2. 当前产品定位
+SpeakWise 是面向中文用户的英语口语练习网页，核心学习闭环是：
+
+选择英语难度。
+选择日常使用场景。
+阅读并听取目标句和情景对话。
+使用浏览器麦克风录音。
+将录音转写，并根据目标句显示跟读评分。
+点击句子中的单词查看音标/释义、朗读并收藏到生词本。
+查看当天对话轮数、发声次数、AI 评分和平均准确率。
+进入 AI 口语对话，用文字或录音回答 AI。
+
+当前品牌和页面标题：SpeakWise — 英语口语练习。页面为中文界面，英语内容作为学习材料展示。
+
+3. 页面与功能结构
+3.1 顶部导航
+线上首页包含：
+
+品牌入口：S 英语口语，点击返回首页。
+口语练习：当前主视图。
+听力训练：进入听力训练视图/模块。
+我的进度：跳转到进度统计区域。
+生词本：打开生词本弹层或面板，并显示当前收藏数量。
+
+3.2 难度选择
+目前有三档：
+
+key	中文	英文	说明/内置进度值
+beginner	初级	Beginner	基础表达，构建数据中可见进度值 33
+intermediate	中级	Intermediate	自然交流，构建数据中可见进度值 56
+advanced	高级	Advanced	复杂表达，构建数据中可见进度值 82
+页面使用 tab 风格按钮切换难度，切换后课程标题、目标句、对话和 AI 场景同步变化。
+
+3.3 对话场景
+目前线上构建数据中可见 10 个场景：
+
+key	场景	练习方向
+greetings	日常问候	打招呼与寒暄
+travel	旅游出行	机场、酒店与问路
+business	商务交流	会议、协作与表达
+housing	租房居住	看房、签租约与报修
+medical	就医看诊	预约、看病与买药
+banking	银行开户	开卡、存取与转账
+shopping	购物用餐	超市、点餐与退换
+transit	交通通勤	公交、地铁与驾照
+government/对应政务场景	政务办理	证件、邮局与税务
+school	学校沟通	入学、家校与请假
+初级·日常问候当前展示：
+
+第 01 课·初次见面
+标题：从一句问候开始。
+目标句：Hi, I'm Alex. Nice to meet you.
+10 轮 Alex/Mia 角色对话。
+
+构建产物还暴露了其他课程示例，例如机场值机、认识同事、预约看房、预约医生、银行账户、超市购物和地铁公交等，说明课程内容目前主要以内置静态数据形式组织。
+
+4. 主要交互模块
+4.1 目标句卡片
+用户可以：
+
+查看当前课目标句。
+点击 播放示范 播放英语句子。
+在 正常 / 较慢 之间切换朗读速度。
+点击句子中的单词，打开单词详情并进行收藏或朗读。
+
+浏览器使用 speechSynthesis 和 SpeechSynthesisUtterance 播放英语，不依赖页面内置音频文件。句子朗读语言设置为 en-US。
+
+4.2 情景对话跟读
+每一轮对话包含：
+
+角色名，例如 Alex、Mia。
+角色类型：练习句或对话伙伴。
+英文句子。
+语音按钮：使用浏览器语音合成朗读。
+翻译按钮：显示/隐藏中文翻译。
+录音按钮：针对当前句子录音并进入 AI 跟读评分。
+
+线上构建产物中的组件定位显示，这部分主要在 client/src/pages/Home.tsx 中组装，句子交互主要使用 client/src/components/InteractiveSentence.tsx，逐句录音评分使用 client/src/components/InlineRecorder.tsx。
+
+4.3 浏览器录音
+主要组件定位：client/src/components/Recorder.tsx。
+
+已确认的录音流程：
+
+点击开始录音。
+调用 navigator.mediaDevices.getUserMedia 获取麦克风权限。
+优先探测浏览器支持的 MIME 类型，包括 audio/webm、audio/mp4、audio/ogg;codecs=opus 等。
+使用 MediaRecorder 分片采集音频，约每 250ms 触发一次数据收集。
+停止录音后合并为 Blob，并生成本地播放 URL。
+进入转写处理状态。
+显示识别文本、录音时长和错误状态；支持失败后重新识别或重新录音。
+录音权限错误、浏览器不支持、无声音等情况均有中文提示。
+
+录音约束：
+
+页面必须使用 HTTPS 才能稳定获得麦克风权限。
+真实用户浏览器需要授权麦克风。
+当前页面会显示“未连接外部音频库”，说明音频录制使用浏览器能力，音频库并非页面常驻资源。
+
+4.4 转写和评分
+构建产物中可确认的接口调用：
+
+前端使用 tRPC 客户端。
+API 基础路径包含 /api/trpc。
+录音转写调用：voice.transcribe.useMutation()。
+认证/会话请求头会尝试读取 sessionStorage 中的 manus-cookie，随后向 tRPC 请求发送 Bearer 信息。
+
+逐句评分卡显示以下字段：
+
+总分 overallScore，以 /100 展示。
+发音 pronunciationScore。
+流利度字段。
+准确度 accuracyScore。
+真实录音识别结果 transcript。
+录音匹配率 transcriptAccuracy。
+词错率 wordErrorRate。
+AI 总结 summary。
+问题指出 issues。
+改进建议 suggestions。
+
+需要注意：公开构建产物能确认转写 mutation 和评分结果的数据结构，但未能确认后端评分 procedure 的完整名称、模型供应商、鉴权配置、音频上传实现和费用策略；这些必须在本地源码和服务端配置中进一步核验。
+
+4.5 AI 口语对话
+页面包含独立的 AI 口语对话模块：
+
+AI 教练先发送英文问题。
+用户可以输入文字后发送。
+输入中文时，界面会先生成英文表达建议。
+用户也可以通过下方录音组件回答。
+AI 回复文字出现时，同时尝试播放语音。
+当前场景支持重读/重新开始。
+AI 对话录音完成后会显示“录音已保存并已转写”等状态。
+
+线上页面所展示的首条 AI 内容为：Hi, I'm Alex. Nice to meet you.。
+
+4.6 生词本
+主要逻辑定位：client/src/components/InteractiveSentence.tsx。
+
+确认行为：
+
+句子按单词拆分，每个词可点击。
+点击后显示词形、音标、中文释义。
+支持点击扬声器朗读单词。
+支持加入/移出生词本。
+生词本条目会保存原始例句和保存时间。
+顶部导航和侧栏同步显示单词数量。
+支持从生词本中逐词朗读和删除。
+
+本地存储 key：
+
+speakwise-vocab-notebook：生词本 JSON 数组。
+
+内置词典覆盖一批常用词，并带有词形还原/简单变形处理；未命中的词会生成保守的占位音标和释义，后续建议核查是否需要接入正式词典服务。
+
+4.7 今日统计和进度
+页面右侧当前显示：
+
+对话轮数。
+发声次数。
+AI 评分。
+平均准确率。
+今日准确率进度条。
+生词本数量。
+
+统计对象包含：
+
+日期。
+practiceRounds。
+recordings。
+accuracyScores。
+
+统计按日期初始化；日期变化后会回到当天的空统计。当前行为属于浏览器端本地统计，不是跨设备账号进度。
+
+推断的本地存储 key 在构建代码中被压缩，完整 key 需从本地源码核实；可以确认其内容用于持久化 date / practiceRounds / recordings / accuracyScores。
+
+5. 技术架构判断
+5.1 前端
+React。
+TypeScript 源码，构建产物保留 .tsx 文件 data-loc。
+单页应用，入口包含 client/src/main.tsx。
+页面主要入口：client/src/pages/Home.tsx。
+404 页面：client/src/pages/NotFound.tsx。
+使用 React hooks 管理页面状态、录音状态、播放状态和弹层状态。
+UI 组件中存在通用 Button、Card、Tooltip、Sonner 等封装。
+CSS 构建产物约 171 KB，包含大量页面模块和响应式样式。
+
+5.2 数据和网络
+tRPC 客户端连接 /api/trpc。
+使用查询/Mutation 风格的客户端数据访问，构建产物中可见 TanStack Query 相关实现。
+页面课程和对话内容主要是前端内置常量/对象，不像是从课程数据库动态加载。
+生词本和今日统计主要保存在浏览器 localStorage。
+主题上下文存在 client/src/contexts/ThemeContext.tsx，当前默认界面为浅色。
+
+5.3 视觉和响应式
+已确认的字体：
+
+DM Sans：正文/界面。
+Space Grotesk：标题或品牌强调。
+另有 Georgia/系统字体回退。
+
+已发现响应式断点包括：480px、620px、720px、780px、820px、1080px，以及 Tailwind 风格的 rem 断点。
+
+页面视觉特点：
+
+白色/米白背景。
+蓝色作为主要操作和进度色。
+卡片式布局，桌面端左侧主内容 + 右侧统计栏。
+大号课程标题和浅蓝目标句卡片。
+录音波形、状态 chip、评分环形图等学习反馈视觉。
+页面包含无障碍属性，如 role="tab"、aria-label、aria-live、键盘关闭评分卡等。
+
+6. 目前最重要的开发边界
+本地数据不是云端进度：换浏览器、清理缓存或换设备后，生词本和今日统计可能丢失。
+录音依赖浏览器权限与兼容性：需要分别测试 Chrome、Edge、Safari、移动端浏览器和拒绝权限场景。
+AI 转写/评分依赖 /api/trpc 服务：需要核实开发环境是否有相同服务、环境变量和鉴权方式。
+课程内容可能由大对象集中维护：新增课程、编辑角色对话和翻译时，可能需要修改 Home.tsx 或同级数据模块。
+听力训练虽然有页面入口：线上首页可见导航，但本次未深入操作该模块；需要拿到源码后确认是否为完整独立功能、是否共享课程数据。
+线上构建与本地源码可能有版本差异：不能直接覆盖本地文件，也不应把线上压缩 JS 当作可维护源码。
+未发现公开的 package.json：服务器对非静态文件路径返回 SPA fallback，因此依赖和脚本命令必须从本地项目核对。
+
+7. 后续修改建议的优先级
+P0：先建立可修改、可回滚的本地基线
+获取/挂载 H:\speakwise_web。
+读取 package.json、README、环境变量示例、构建配置。
+检查 Git 状态和当前分支。
+确认线上构建对应的 commit 或发布时间。
+启动本地开发服务并验证首页、录音、AI API 是否可用。
+
+P1：先修复影响核心学习闭环的问题
+录音权限、录音结束、转写失败和重试流程。
+AI 评分结果是否能可靠写入今日统计。
+AI 对话文字发送、中文表达建议和录音转写链路。
+移动端录音按钮、滚动和键盘布局。
+生词本刷新后是否正确同步顶部数量和侧栏内容。
+
+P2：扩展课程与学习数据
+将课程大对象拆分为独立的 data/lessons 模块。
+为课程建立统一类型：难度、场景、目标句、提示、角色、翻译、音频/朗读配置。
+进度从 localStorage 迁移到用户账户/云端存储时，增加版本号、同步冲突和隐私说明。
+将词典占位逻辑替换为可维护的词典数据或服务。
+
+P3：体验和可运营能力
+加入学习历史、连续学习天数和课程完成状态。
+增加评分维度解释和针对性练习。
+增加录音回放、删除和隐私控制。
+完善听力训练独立流程。
+增加错误监控、接口耗时、转写成功率和评分失败率统计。
+
+8. 拿到本地源码后的建议检查顺序
+1. package.json / pnpm-lock.yaml / npm-shrinkwrap.json
+2. src 或 client 目录结构
+3. client/src/main.tsx
+4. client/src/pages/Home.tsx
+5. client/src/components/Recorder.tsx
+6. client/src/components/InlineRecorder.tsx
+7. client/src/components/InteractiveSentence.tsx
+8. client/src/components/ListeningTrainingView.tsx
+9. client/src/contexts/ThemeContext.tsx
+10. tRPC router、voice.transcribe 服务端实现
+11. .env.example、部署配置和发布脚本
+12. Git log、当前分支与线上版本对应关系
+
+9. 当前可直接使用的修改定位表
+需求类型	优先定位文件
+修改页面布局、课程卡片、导航、统计栏	client/src/pages/Home.tsx
+修改录音开始/暂停/停止、麦克风错误、转写展示	client/src/components/Recorder.tsx
+修改逐句评分卡、发音/流利度/准确率展示	client/src/components/InlineRecorder.tsx
+修改单词点击、音标、释义、收藏和生词本	client/src/components/InteractiveSentence.tsx
+修改听力训练	client/src/components/ListeningTrainingView.tsx（名称来自线上构建定位，需本地核实）
+修改主题或暗色模式	client/src/contexts/ThemeContext.tsx
+修改页面启动和全局 Provider	client/src/main.tsx
+修改转写接口或评分后端	tRPC router / voice.transcribe 对应服务端文件
+修改课程、场景、对话台词	Home.tsx 内置课程数据或本地独立 lesson data 文件
+10. 下一步如何进入实际修改
+当前最关键的阻塞不是功能判断，而是源码目录权限：本次环境仅能访问 Sandbox，不能访问用户电脑的 H: 盘。要进行实际代码修改，需要在后续会话中提供以下任一条件：
+
+让任务运行在包含 H:\speakwise_web 的已授权 Windows/Cloud Computer 环境；或
+将项目目录压缩后上传到当前可访问工作区；或
+将项目放到可访问的 Git 仓库并提供仓库地址/访问方式。
+
+拿到源码后，建议先不直接改功能，先完成一次本地构建和线上行为对照，再根据具体需求制作最小改动、运行测试，并重新发布。
